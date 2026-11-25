@@ -269,24 +269,36 @@ print("   Ojo: Grupo_Severidad coincide 100% con DiagPrevio, por eso sale perfec
 colores = {0: "#9b59b6", 1: "#3498db", 2: "#e67e22", 3: "#e74c3c"}
 nombres_nivel = {0: "Demografía", 1: "Exposiciones y antecedentes",
                  2: "Síntomas", 3: "Tomografía y biopsia"}
+# orden de izquierda a derecha en cada renglón (para que se crucen menos flechas)
+ORDEN = ["sexo",
+         "HumoL", "Fuma", "Ag aviario", "aves", "TratPrevio", "DiagPrevio",
+         "tos", "hemoptisis", "dolor toracico", "hipocratismo", "disnea", "fiebre",
+         "mosaico", "enfisema", "BIOPSIA P", "DerrameP", "HRTC vidrio", "reticular basal",
+         "panal", "bronquiectasias", "micronodulos", "consolidacion", "Grupo_Severidad"]
 posiciones = {}
 for nivel in range(4):
-    del_nivel = sorted(n for n in grafo.nodes() if NIVEL[n] == nivel)
+    del_nivel = [n for n in ORDEN if n in grafo.nodes() and NIVEL[n] == nivel]
     for j, n in enumerate(del_nivel):
         x = j - (len(del_nivel) - 1) / 2
         y = -nivel * 2 + (0.7 if j % 2 else 0)       # zigzag para que no se encimen
         posiciones[n] = (x * 2.4, y)
 
 plt.figure(figsize=(16, 9))
-nx.draw_networkx_edges(grafo, posiciones, arrows=True, arrowsize=18, node_size=4500,
-                       edge_color="#555555", connectionstyle="arc3,rad=0.08")
-# cada variable se dibuja como un cuadrito con su nombre, del color de su nivel
+TAM = 900   # tamaño de los círculos
+# flechas: más gruesas mientras más fuerza tenga la flecha en el bootstrap
+fuerza = {(a, b): f for a, b, f in flechas}
+nx.draw_networkx_edges(grafo, posiciones, arrows=True, arrowsize=16, node_size=TAM,
+                       width=[1 + 2.5 * fuerza[e] for e in grafo.edges()],
+                       edge_color="#666666", connectionstyle="arc3,rad=0.1")
+# nodos: un círculo por variable, del color de su nivel
+nx.draw_networkx_nodes(grafo, posiciones, node_size=TAM,
+                       node_color=[colores[NIVEL[n]] for n in grafo.nodes()],
+                       edgecolors="#333333", linewidths=1.2)
+# nombres debajo de cada círculo para que se lean completos
+abajo = {n: (x, y - 0.38) for n, (x, y) in posiciones.items()}
+nx.draw_networkx_labels(grafo, abajo, font_size=9, font_weight="bold")
 for nivel, color in colores.items():
-    etiquetas = {n: n for n in grafo.nodes() if NIVEL[n] == nivel}
-    nx.draw_networkx_labels(grafo, posiciones, labels=etiquetas, font_size=9,
-                            font_color="white", font_weight="bold",
-                            bbox=dict(boxstyle="round,pad=0.5", facecolor=color, edgecolor="none"))
-    if etiquetas:
+    if any(NIVEL[n] == nivel for n in grafo.nodes()):
         plt.scatter([], [], color=color, s=120, label=nombres_nivel[nivel])
 plt.legend(loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=4, frameon=False)
 plt.title(f"Red bayesiana final ({len(flechas)} flechas, {REPETICIONES} repeticiones, umbral {UMBRAL:.0%})")
